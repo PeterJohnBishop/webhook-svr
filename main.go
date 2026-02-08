@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -8,11 +9,10 @@ import (
 	"webhook-svr/mail"
 
 	"github.com/gin-gonic/gin"
-	"github.com/resend/resend-go/v2"
 )
 
 var (
-	emailStore   []*resend.Email
+	emailStore   []mail.MessagePayload
 	payloadStore []string
 	storeMutex   sync.Mutex
 )
@@ -35,26 +35,23 @@ func main() {
 
 	// mailhook
 	r.POST("/mail", func(c *gin.Context) {
-		var event mail.ResendEvent
-		if err := c.BindJSON(&event); err != nil {
+		var payload mail.MessagePayload
+		if err := c.BindJSON(&payload); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 			return
 		}
-		if event.Type != "email.received" {
-			c.JSON(http.StatusOK, gin.H{"status": "ignored"})
-			return
-		}
-		email, err := mail.GetEmail(event)
+
+		msg, err := json.Marshal(payload)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Error marshaling JSON"})
 		}
+		fmt.Printf("Email Recieved: %s", msg)
 
 		storeMutex.Lock()
-		emailStore = append(emailStore, email)
+		emailStore = append(emailStore, payload)
 		storeMutex.Unlock()
 
-		c.JSON(http.StatusOK, gin.H{"status": "processed", "id": email.Id})
+		c.JSON(http.StatusOK, gin.H{"status": "processed"})
 	})
 
 	// webhook
