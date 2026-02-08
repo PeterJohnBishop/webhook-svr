@@ -2,10 +2,8 @@ package mail
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 
-	"github.com/gin-gonic/gin"
 	"github.com/resend/resend-go/v2"
 )
 
@@ -16,17 +14,19 @@ type ResendEvent struct {
 	} `json:"data"`
 }
 
-func GetEmail(c *gin.Context, event ResendEvent) (resend.Email, bool) {
+func GetEmail(event ResendEvent) (*resend.Email, error) {
 	apiKey := os.Getenv("RESEND_API_KEY")
-	client := resend.NewClient(apiKey)
-
-	emailPtr, err := client.Emails.Get(event.Data.EmailID)
-
-	if err != nil {
-		fmt.Println("Error fetching email:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch email content"})
-		return resend.Email{}, false
+	if apiKey == "" {
+		return nil, fmt.Errorf("RESEND_API_KEY is missing")
 	}
 
-	return *emailPtr, true
+	client := resend.NewClient(apiKey)
+
+	// client.Emails.Get returns (*resend.Email, error)
+	email, err := client.Emails.Get(event.Data.EmailID)
+	if err != nil {
+		return nil, err
+	}
+
+	return email, nil
 }
