@@ -20,6 +20,10 @@ func GetEmail(event ResendEvent) (*resend.Email, error) {
 		return nil, fmt.Errorf("RESEND_API_KEY is missing")
 	}
 
+	fmt.Printf("DEBUG: Attempting to fetch Email ID: '%s' using Key starting with: %s\n",
+		event.Data.EmailID,
+		apiKey[0:5]+"...")
+
 	client := resend.NewClient(apiKey)
 
 	// client.Emails.Get returns (*resend.Email, error)
