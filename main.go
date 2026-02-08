@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	emailStore   []*resend.Email
+	emailStore   []resend.Email
 	payloadStore []string
 	storeMutex   sync.Mutex
 )
@@ -36,6 +36,7 @@ func main() {
 	// mailhook
 	r.POST("/mail", func(c *gin.Context) {
 		var event mail.ResendEvent
+		var email resend.Email
 		if err := c.BindJSON(&event); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 			return
@@ -44,7 +45,7 @@ func main() {
 			c.JSON(http.StatusOK, gin.H{"status": "ignored"})
 			return
 		}
-		email := mail.GetEmail(c, event)
+		email, _ = mail.GetEmail(c, event)
 
 		storeMutex.Lock()
 		emailStore = append(emailStore, email)

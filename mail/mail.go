@@ -16,14 +16,17 @@ type ResendEvent struct {
 	} `json:"data"`
 }
 
-func GetEmail(c *gin.Context, event ResendEvent) *resend.Email {
+func GetEmail(c *gin.Context, event ResendEvent) (resend.Email, bool) {
 	apiKey := os.Getenv("RESEND_API_KEY")
 	client := resend.NewClient(apiKey)
-	email, err := client.Emails.Get(event.Data.EmailID)
+
+	emailPtr, err := client.Emails.Get(event.Data.EmailID)
+
 	if err != nil {
 		fmt.Println("Error fetching email:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch email content"})
-		return nil
+		return resend.Email{}, false
 	}
-	return email
+
+	return *emailPtr, true
 }
