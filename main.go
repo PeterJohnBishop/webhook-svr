@@ -29,7 +29,7 @@ func main() {
 	if resendToken == "" {
 		log.Fatalln("Resend API Key not set!")
 	}
-	resendClient := resend.NewClient("re_xxxxxxxxx")
+	resendClient := resend.NewClient(resendToken)
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
@@ -57,6 +57,7 @@ func main() {
 				mail, success := mail.GetMail(resendClient, mailPayload.Data.EmailID)
 				if !success {
 					c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to fetch email"})
+					return
 				}
 				storeMutex.Lock()
 				emailStore = append(emailStore, mail)
