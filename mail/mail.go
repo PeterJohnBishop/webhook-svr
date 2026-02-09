@@ -34,7 +34,9 @@ type Attachment struct {
 }
 
 func GetMail(client *resend.Client, mailID string) (resend.ReceivedEmail, bool) {
-	var email resend.ReceivedEmail
+	if mailID == "" {
+		return resend.ReceivedEmail{}, false
+	}
 	data, err := client.Emails.Receiving.GetWithContext(
 		context.TODO(),
 		mailID,
@@ -42,6 +44,8 @@ func GetMail(client *resend.Client, mailID string) (resend.ReceivedEmail, bool) 
 	if err != nil {
 		return resend.ReceivedEmail{}, false
 	}
-	email = *data
-	return email, true
+	if data == nil {
+		return resend.ReceivedEmail{}, false
+	}
+	return *data, true
 }
