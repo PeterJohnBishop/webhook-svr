@@ -3,16 +3,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"sync"
 	"webhook-svr/mail"
 
 	"github.com/gin-gonic/gin"
+	"github.com/resend/resend-go/v3"
 )
 
 var (
-	emailStore   []mail.MessagePayload
+	emailStore   []resend.ReceivedEmail
 	payloadStore []string
 	storeMutex   sync.Mutex
 )
@@ -22,6 +24,13 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+
+	resendToken := os.Getenv("RESEND_API_KEY")
+	if resendToken == "" {
+		log.Fatalln("Resend API Key not set!")
+	}
+	resendClient := resend.NewClient("re_xxxxxxxxx")
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
@@ -45,11 +54,15 @@ func main() {
 		if err := json.Unmarshal(bodyBytes, &mailPayload); err == nil {
 			// check the payload isn't empty
 			if isValidMail(mailPayload) {
+				mail, success := mail.GetMail(resendClient, mailPayload.Data.EmailID)
+				if !success {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to fetch email"})
+				}
 				storeMutex.Lock()
-				emailStore = append(emailStore, mailPayload)
+				emailStore = append(emailStore, mail)
 				storeMutex.Unlock()
 
-				fmt.Printf("Email Received: %+v\n", mailPayload)
+				fmt.Printf("Email ID %s received.\n", mailPayload.Data.EmailID)
 				c.JSON(http.StatusOK, gin.H{"status": "processed", "type": "mail"})
 				return
 			}
