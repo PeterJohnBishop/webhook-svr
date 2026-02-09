@@ -33,40 +33,48 @@ func main() {
 		})
 	})
 
-	// mailhook
-	r.POST("/mail", func(c *gin.Context) {
-		var payload mail.MessagePayload
-		if err := c.BindJSON(&payload); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-			return
-		}
+	r.POST("/webhook", func(c *gin.Context) {
 
-		msg, err := json.Marshal(payload)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Error marshaling JSON"})
-		}
-		fmt.Printf("Email Recieved: %s", msg)
-
-		storeMutex.Lock()
-		emailStore = append(emailStore, payload)
-		storeMutex.Unlock()
-
-		c.JSON(http.StatusOK, gin.H{"status": "processed"})
-	})
-
-	// webhook
-	r.POST("/hook", func(c *gin.Context) {
-		payload, err := c.GetRawData()
+		bodyBytes, err := c.GetRawData()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to read body"})
 			return
 		}
-		fmt.Println("Received webhook:", string(payload))
 
+		var mailPayload mail.MessagePayload
+		if err := json.Unmarshal(bodyBytes, &mailPayload); err == nil {
+			// check the payload isn't empty
+			if isValidMail(mailPayload) {
+				storeMutex.Lock()
+				emailStore = append(emailStore, mailPayload)
+				storeMutex.Unlock()
+
+				fmt.Printf("Email Received: %+v\n", mailPayload)
+				c.JSON(http.StatusOK, gin.H{"status": "processed", "type": "mail"})
+				return
+			}
+		}
+
+		/*
+		   var otherPayload OtherType
+		   if err := json.Unmarshal(bodyBytes, &otherPayload); err == nil && otherPayload.ID != 0 {
+		       // Handle other type
+		       c.JSON(http.StatusOK, gin.H{"status": "processed", "type": "other"})
+		       return
+		   }
+		*/
+
+		fmt.Println("Received untyped webhook payload:", string(bodyBytes))
 		c.JSON(http.StatusOK, gin.H{
 			"status":    "received",
 			"processed": true,
+			"type":      "raw",
 		})
 	})
+
 	r.Run(":" + port)
+}
+
+func isValidMail(m mail.MessagePayload) bool {
+	return m.Data.From != ""
 }
